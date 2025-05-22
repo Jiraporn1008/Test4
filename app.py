@@ -1,39 +1,49 @@
 from flask import Flask, request, jsonify
+from werkzeug.utils import secure_filename
 import pandas as pd
-import requests
-import re
 from io import BytesIO
 
 app = Flask(__name__)
 
-def extract_drive_file_id(url):
-    match = re.search(r'/d/([a-zA-Z0-9_-]+)', url)
-    if match:
-        return match.group(1)
-    match_alt = re.search(r'id=([a-zA-Z0-9_-]+)', url)
-    return match_alt.group(1) if match_alt else None
+@app.route('/upload', methods=['POST'])
+def upload():
+    uploaded_files = request.files.getlist('files')
+    daily_reports = {}
+    new_employees_data = []
 
-@app.route('/upload_link', methods=['POST'])
-def upload_link():
-    data = request.get_json()
-    link = data.get("url")
-    if not link:
-        return jsonify({"error": "No URL provided"}), 400
+    for file in uploaded_files:
+        filename = secure_filename(file.filename)
+        content = file.read()
+        df = pd.read_excel(BytesIO(content))
 
-    file_id = extract_drive_file_id(link)
-    if not file_id:
-        return jsonify({"error": "Invalid Google Drive link"}), 400
+        if filename.startswith("Daily report_"):
+            parts = filename.replace('.xls', '').replace('.xlsx', '').split('_')
+            team_member = parts[-2] + ' ' + parts[-1]
+            df['Team Member'] = team_member
+            daily_reports[filename] = df
+        elif filename.startswith("New Employee_"):
+            new_employees_data.append(df)
 
-    download_url = f"https://drive.google.com/uc?export=download&id={file_id}"
+    if not new_employees_data:
+        return jsonify({"error": "No New Employee files found"}), 400
+    if not daily_reports:
+        return jsonify({"error": "No Daily Report files found"}), 400
 
-    try:
-        resp = requests.get(download_url)
-        resp.raise_for_status()
-        excel_data = pd.read_excel(BytesIO(resp.content))
-        records = excel_data.fillna('').to_dict(orient='records')
-        return jsonify({"status": "success", "data": records})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    new_employees = pd.concat(new_employees_data, ignore_index=True)
+
+    mapped_data = []
+    for file, df in daily_reports.items():
+        for _, row in df.iterrows():
+            matched = new_employees[new_employees['Employee Name'] == row.get('Candidate Name')]
+            for _, emp in matched.iterrows():
+                mapped_data.append({
+                    "Employee Name": emp["Employee Name"],
+                    "Join Date": str(emp["Join Date"]),
+                    "Role": emp["Role"],
+                    "Team Member": row["Team Member"]
+                })
+
+    return jsonify(mapped_data)
 
 if __name__ == '__main__':
     app.run(debug=True)

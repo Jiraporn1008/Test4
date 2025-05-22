@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Drive Excel Mapper</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f9f9f9;
+      padding: 2em;
+    }
+
+    .card {
+      background: #fff;
+      padding: 2em;
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      max-width: 800px;
+      margin: auto;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 0.8em;
+      margin: 1em 0;
+      font-size: 1rem;
+    }
+
+    button {
+      padding: 0.6em 1.2em;
+      font-size: 1rem;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    table {
+      width: 100%;
+      margin-top: 1em;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 0.6em;
+      border: 1px solid #ccc;
+    }
+
+    th {
+      background-color: #e9ecef;
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <h2>📂 Upload Excel File from Google Drive</h2>
+  <p>Paste your <strong>Google Drive file link</strong> below (must be shared as "Anyone with link can view"):</p>
+  <input type="text" id="driveUrl" placeholder="https://drive.google.com/file/d/FILE_ID/view?usp=sharing" />
+  <button onclick="submitLink()">Upload</button>
+
+  <div id="tableArea"></div>
+</div>
+
+<script>
+function submitLink() {
+  const url = document.getElementById('driveUrl').value;
+  if (!url) return alert("Please enter a Google Drive link.");
+
+  fetch('https://your-backend.onrender.com/upload_link', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url })
+  })
+  .then(res => res.json())
+  .then(json => {
+    if (json.error) {
+      document.getElementById('tableArea').innerHTML = `<p style="color:red;">Error: ${json.error}</p>`;
+      return;
+    }
+    const data = json.data;
+    if (!data.length) {
+      document.getElementById('tableArea').innerHTML = "<p>No data found in Excel.</p>";
+      return;
+    }
+
+    const keys = Object.keys(data[0]);
+    let html = "<table><thead><tr>" + keys.map(k => `<th>${k}</th>`).join('') + "</tr></thead><tbody>";
+
+    for (const row of data) {
+      html += "<tr>" + keys.map(k => `<td>${row[k]}</td>`).join('') + "</tr>";
+    }
+
+    html += "</tbody></table>";
+    document.getElementById('tableArea').innerHTML = html;
+  })
+  .catch(err => {
+    console.error(err);
+    document.getElementById('tableArea').innerHTML = `<p style="color:red;">Error fetching file</p>`;
+  });
+}
+</script>
+
+</body>
+</html>

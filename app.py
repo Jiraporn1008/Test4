@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from werkzeug.utils import secure_filename
 import pandas as pd
 from io import BytesIO
+import os
 
 app = Flask(__name__)
 
@@ -45,5 +46,6 @@ def upload():
 
     return jsonify(mapped_data)
 
-if __name__ == '__main__':
-    app.run(debug=True)
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)

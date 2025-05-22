@@ -51,3 +51,7 @@ def index():
             dashboard = mapped
 
     return render_template("index.html", daily_tables=daily_tables, new_emp_tables=new_emp_tables, dashboard=dashboard)
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
